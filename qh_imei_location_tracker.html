@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="fa-AF" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>QH IMEI Location Tracker</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+:root{--bg:#0b1220;--panel:#121d30;--panel2:#17243a;--text:#edf4ff;--muted:#9fb0c9;--line:#2a3a53;--green:#21c783;--blue:#5ba7ff;--red:#ff6878;--orange:#ffad55}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#16243a 0,#0b1220 60%);color:var(--text);font-family:Tahoma,"Segoe UI",sans-serif;line-height:1.7}
+.wrap{max-width:1180px;margin:auto;padding:20px}.top{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;gap:12px;align-items:center}.logo{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#21c783,#1686b8);font-weight:900;color:#06131b;font-size:20px}
+h1{font-size:clamp(21px,3vw,30px);margin:0}.sub{color:var(--muted);margin:2px 0 0;font-size:13px}.pill{border:1px solid var(--line);background:#101a2a;padding:7px 12px;border-radius:999px;color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:350px minmax(0,1fr);gap:16px}.panel{background:linear-gradient(160deg,rgba(23,36,58,.97),rgba(15,25,41,.97));border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 12px 35px #0002;min-width:0}
+h2{font-size:17px;margin:0 0 12px}.hint{font-size:12px;color:var(--muted);margin:6px 0 14px}.field{margin-bottom:14px}label{display:block;font-size:13px;font-weight:bold;margin-bottom:6px}
+input{width:100%;background:#0b1423;border:1px solid #34465f;border-radius:10px;padding:12px;color:var(--text);font:inherit;direction:ltr;text-align:left;outline:none}
+input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #5ba7ff20}.feedback{font-size:12px;min-height:20px;color:var(--muted)}.feedback.error{color:var(--red)}.feedback.ok{color:var(--green)}
+button,.btn{border:0;border-radius:11px;padding:11px 14px;font:inherit;font-weight:bold;cursor:pointer;transition:.15s}
+button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--green);color:#04170f;width:100%}.secondary{background:#243750;color:var(--text);border:1px solid #3a506c}.danger{background:#4a202d;color:#ffdbe0;border:1px solid #753344}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.notice{font-size:12px;color:#ffdaa9;background:#382b1e;border:1px solid #61462b;padding:10px 12px;border-radius:10px;margin-top:14px}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-bottom:12px}.dot{width:9px;height:9px;border-radius:50%;background:#718096}.dot.live{background:var(--green);box-shadow:0 0 0 4px #21c78320}
+#map{height:480px;border-radius:13px;border:1px solid var(--line);background:#0b1423;z-index:1}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}.stat{background:#0d1727;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}.stat small{display:block;color:var(--muted);font-size:11px}.stat strong{display:block;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
+.bottom{margin-top:16px}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:right;padding:9px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--muted);font-weight:normal}.empty{color:var(--muted);text-align:center;padding:18px}
+.footer{color:var(--muted);font-size:11px;text-align:center;margin:20px 0 5px}
+@media(max-width:850px){.grid{grid-template-columns:1fr}#map{height:390px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:12px}.panel{padding:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="brand"><div class="logo">QH</div><div><h1>QH IMEI Location Tracker</h1><p class="sub">سامانهٔ خودردیابی مکانی با نقشهٔ زنده</p></div></div>
+  <span class="pill">نسخهٔ آزمایشی امن · GPS با اجازهٔ کاربر</span>
+</header>
+
+<div class="grid">
+  <aside class="panel">
+    <h2>ثبت شناسهٔ دستگاه</h2>
+    <p class="hint">شناسه فقط برای برچسب‌گذاری مسیر است؛ مکان از IMEI استخراج نمی‌شود.</p>
+    <div class="field">
+      <label for="imei">IMEI (۱۵ رقم) یا IMEISV (۱۶ رقم)</label>
+      <input id="imei" inputmode="numeric" autocomplete="off" maxlength="16" placeholder="فقط رقم‌ها">
+      <div id="imeiFeedback" class="feedback">IMEI پانزده‌رقمی با الگوریتم Luhn بررسی می‌شود؛ IMEISV شانزده‌رقمی چک‌دیجیت Luhn ندارد.</div>
+    </div>
+    <div class="field">
+      <label for="label">نام دلخواه دستگاه (اختیاری)</label>
+      <input id="label" maxlength="50" placeholder="مثلاً موبایل شخصی">
+    </div>
+    <button id="start" class="primary" disabled>اجازهٔ مکان و شروع ردیابی</button>
+    <div class="actions">
+      <button id="stop" class="danger" disabled>توقف ردیابی</button>
+      <button id="center" class="secondary">مرکز کردن نقشه</button>
+      <button id="export" class="secondary">گرفتن گزارش JSON</button>
+      <button id="clear" class="secondary">پاک‌کردن مسیر</button>
+    </div>
+    <div id="message" class="notice" role="status">برای شروع، شناسه را وارد کنید و اجازهٔ مکان‌یابی مرورگر را بدهید. سایت باید در HTTPS یا localhost اجرا شود.</div>
+    <div class="notice">حریم خصوصی: این نسخه فقط مکان همین دستگاه/مرورگری را که رضایت داده ثبت می‌کند. اطلاعات مسیر در حافظهٔ همین مرورگر نگهداری می‌شود و به سرور ارسال نمی‌گردد.</div>
+  </aside>
+
+  <main class="panel">
+    <div class="status"><span id="dot" class="dot"></span><span id="statusText">ردیابی شروع نشده است</span></div>
+    <div id="map" aria-label="نقشهٔ موقعیت دستگاه"></div>
+    <div class="stats">
+      <div class="stat"><small>شناسه</small><strong id="outImei">—</strong></div>
+      <div class="stat"><small>دقت اعلام‌شده</small><strong id="accuracy">—</strong></div>
+      <div class="stat"><small>آخرین به‌روزرسانی</small><strong id="updated">—</strong></div>
+      <div class="stat"><small>تعداد نقاط مسیر</small><strong id="count">۰</strong></div>
+      <div class="stat"><small>عرض جغرافیایی</small><strong id="lat">—</strong></div>
+      <div class="stat"><small>طول جغرافیایی</small><strong id="lng">—</strong></div>
+      <div class="stat"><small>منبع</small><strong>Geolocation API مرورگر</strong></div>
+      <div class="stat"><small>ذخیره‌سازی</small><strong>محلی در همین مرورگر</strong></div>
+    </div>
+  </main>
+</div>
+
+<section class="panel bottom">
+  <h2>نقاط ثبت‌شدهٔ مسیر</h2>
+  <div class="tablewrap"><table><thead><tr><th>ردیف</th><th>زمان</th><th>عرض</th><th>طول</th><th>دقت (متر)</th></tr></thead><tbody id="rows"><tr><td colspan="5" class="empty">هنوز نقطه‌ای ثبت نشده است.</td></tr></tbody></table></div>
+</section>
+<p class="footer">QH VisionX · موقعیت‌یابی با اجازهٔ صریح کاربر · نقشه بر پایهٔ OpenStreetMap</p>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const imeiInput = $('imei'), feedback = $('imeiFeedback'), startBtn = $('start');
+  const STORAGE_KEY = 'qh-location-tracker-v1';
+  let map, marker, circle, line, watchId = null, points = [];
+  try { points = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (!Array.isArray(points)) points = []; } catch { points = []; }
+
+  function isDigits(s) { return /^[0-9]+$/.test(s); }
+  function validImei(s) {
+    if (!isDigits(s)) return false;
+    if (s.length === 16) return true; // IMEISV: no Luhn check digit
+    if (s.length !== 15) return false;
+    let sum = 0;
+    for (let i = 0; i < 14; i++) {
+      let d = Number(s[i]);
+      if ((i % 2) === 1) { d *= 2; if (d > 9) d -= 9; }
+      sum += d;
+    }
+    return ((10 - (sum % 10)) % 10) === Number(s[14]);
+  }
+  function validate() {
+    const s = imeiInput.value.trim();
+    const ok = validImei(s);
+    startBtn.disabled = !ok || watchId !== null;
+    feedback.className = 'feedback' + (s ? (ok ? ' ok' : ' error') : '');
+    feedback.textContent = !s ? 'IMEI پانزده‌رقمی با الگوریتم Luhn بررسی می‌شود؛ IMEISV شانزده‌رقمی چک‌دیجیت Luhn ندارد.' :
+      (ok ? 'ساختار شناسه قابل قبول است؛ این بررسی مالکیت یا واقعی‌بودن دستگاه را ثابت نمی‌کند.' :
+      'شناسه معتبر نیست: IMEI باید ۱۵ رقم با چک‌دیجیت درست باشد یا IMEISV شانزده‌رقمی وارد کنید.');
+  }
+  function msg(t, type='info') { const el=$('message'); el.textContent=t; el.style.borderColor=type==='error'?'#753344':type==='ok'?'#21694f':'#61462b'; }
+  function initMap() {
+    if (map || !window.L) return;
+    map = L.map('map').setView([34.5, 66.0], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    line = L.polyline([], {color:'#258bff', weight:4, opacity:.9}).addTo(map);
+    renderPoints();
+  }
+  function fmtTime(iso) { return new Date(iso).toLocaleString('fa-AF'); }
+  function renderPoints() {
+    $('count').textContent = points.length.toLocaleString('fa-AF');
+    const tbody = $('rows');
+    if (!points.length) { tbody.innerHTML='<tr><td colspan="5" class="empty">هنوز نقطه‌ای ثبت نشده است.</td></tr>'; }
+    else tbody.innerHTML = points.slice(-30).reverse().map((p,i)=>`<tr><td>${(points.length-i).toLocaleString('fa-AF')}</td><td>${fmtTime(p.timestamp)}</td><td>${p.lat.toFixed(6)}</td><td>${p.lng.toFixed(6)}</td><td>${Math.round(p.accuracy).toLocaleString('fa-AF')}</td></tr>`).join('');
+    if (line) line.setLatLngs(points.map(p=>[p.lat,p.lng]));
+  }
+  function persist() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(points.slice(-5000))); } catch { msg('ذخیره‌سازی مرورگر پر یا غیرفعال است؛ گزارش را صادر کنید.', 'error'); } }
+  function onPosition(pos) {
+    const c=pos.coords, p={lat:c.latitude,lng:c.longitude,accuracy:Number.isFinite(c.accuracy)?c.accuracy:0,timestamp:new Date(pos.timestamp||Date.now()).toISOString()};
+    // Avoid adding duplicate stationary samples with essentially identical timestamps/coordinates.
+    const last=points[points.length-1];
+    if (!last || last.lat!==p.lat || last.lng!==p.lng || Date.now()-Date.parse(last.timestamp)>60000) points.push(p);
+    persist();
+    if (!map) initMap();
+    const ll=[p.lat,p.lng];
+    if (!marker) marker=L.circleMarker(ll,{radius:8,color:'#063e2a',weight:2,fillColor:'#21c783',fillOpacity:1}).addTo(map);
+    else marker.setLatLng(ll);
+    if (!circle) circle=L.circle(ll,{radius:p.accuracy,color:'#21c783',weight:1,fillOpacity:.13}).addTo(map);
+    else { circle.setLatLng(ll); circle.setRadius(p.accuracy); }
+    marker.bindPopup(`<b>موقعیت همین دستگاه</b><br>شناسه: ${escapeHtml(imeiInput.value.trim())}<br>دقت اعلام‌شده: ${Math.round(p.accuracy)} متر<br>زمان: ${escapeHtml(fmtTime(p.timestamp))}`);
+    line.setLatLngs(points.map(x=>[x.lat,x.lng]));
+    map.setView(ll, Math.max(map.getZoom(), 15));
+    $('outImei').textContent=imeiInput.value.trim();
+    $('accuracy').textContent=`± ${Math.round(p.accuracy).toLocaleString('fa-AF')} متر`;
+    $('updated').textContent=fmtTime(p.timestamp);
+    $('lat').textContent=p.lat.toFixed(6); $('lng').textContent=p.lng.toFixed(6);
+    $('dot').classList.add('live'); $('statusText').textContent='ردیابی فعال است';
+    renderPoints();
+    msg('موقعیت دریافت شد. دقت واقعی به GPS، ساختمان، دستگاه و شرایط محیط بستگی دارد.','ok');
+  }
+  function escapeHtml(s) { return s.replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function onError(err) {
+    const messages={1:'اجازهٔ مکان‌یابی داده نشد. از تنظیمات مرورگر اجازه بدهید.',2:'موقعیت فعلاً در دسترس نیست؛ GPS و خدمات مکان‌یابی را بررسی کنید.',3:'زمان دریافت موقعیت تمام شد؛ دوباره تلاش کنید.'};
+    msg(messages[err.code] || 'در دریافت موقعیت خطای ناشناخته رخ داد.','error');
+    $('statusText').textContent='خطا در دریافت موقعیت';
+  }
+  function start() {
+    if (!validImei(imeiInput.value.trim())) { validate(); return; }
+    if (!navigator.geolocation) { msg('این مرورگر از Geolocation API پشتیبانی نمی‌کند.','error'); return; }
+    if (!window.isSecureContext) { msg('برای دسترسی مکانی، سایت را با HTTPS یا روی localhost اجرا کنید.','error'); return; }
+    if (watchId !== null) return;
+    watchId=navigator.geolocation.watchPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+    startBtn.disabled=true; $('stop').disabled=false;
+    $('statusText').textContent='در انتظار موقعیت GPS…';
+    msg('درخواست مکان ارسال شد. در پنجرهٔ مرورگر گزینهٔ اجازه را انتخاب کنید.');
+  }
+  function stop() {
+    if (watchId!==null) navigator.geolocation.clearWatch(watchId);
+    watchId=null; startBtn.disabled=!validImei(imeiInput.value.trim()); $('stop').disabled=true;
+    $('dot').classList.remove('live'); $('statusText').textContent='ردیابی متوقف شد';
+    msg('ردیابی متوقف شد. نقاط قبلی در همین مرورگر باقی مانده‌اند.');
+  }
+  imeiInput.addEventListener('input',validate);
+  imeiInput.addEventListener('blur',validate);
+  $('start').addEventListener('click',start);
+  $('stop').addEventListener('click',stop);
+  $('center').addEventListener('click',()=>{if(points.length&&map){const p=points[points.length-1];map.setView([p.lat,p.lng],16);}else if(map)map.setView([34.5,66],5);});
+  $('export').addEventListener('click',()=>{
+    const data={application:'QH IMEI Location Tracker',notice:'IMEI is only a label; locations are collected from this browser with user permission.',deviceLabel:$('label').value.trim(),imei:imeiInput.value.trim()||null,exportedAt:new Date().toISOString(),points};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download='qh-location-report.json'; a.click(); URL.revokeObjectURL(url);
+  });
+  $('clear').addEventListener('click',()=>{
+    if(!confirm('تمام نقاط ذخیره‌شدهٔ مسیر از این مرورگر پاک شود؟')) return;
+    points=[]; persist(); if(line)line.setLatLngs([]); if(marker){map.removeLayer(marker);marker=null;} if(circle){map.removeLayer(circle);circle=null;}
+    renderPoints(); $('count').textContent='۰'; msg('مسیر محلی پاک شد.');
+  });
+  window.addEventListener('beforeunload',()=>{if(watchId!==null)navigator.geolocation.clearWatch(watchId);});
+  initMap(); validate(); renderPoints();
+})();
+</script>
+</body>
+</html>
